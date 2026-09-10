@@ -1,0 +1,59 @@
+---
+title: "Prise en main de DuckDB avec R pour la réalisétion d'études ou de réponses à la demande"
+---
+
+## Pourquoi DuckDB ?
+
+[DuckDB](https://duckdb.org/) est une base de données qui tourne **directement dans votre session R**, sans serveur à installer. On l'utilise avec le langage **SQL**, mais on peut aussi l'utiliser avec les verbes `dplyr` que vous connaissez déjà.
+
+Ses avantages pour une étude ou une réponse à la demande :
+
+- **Rapide** : conçu pour analyser de gros volumes de données (bien plus rapide que `data.frame` ou même `dplyr` seul sur de gros fichiers).
+- **Économe en mémoire** : peut traiter des fichiers plus gros que la RAM disponible.
+- **Polyvalent** : lit et écrit nativement des fichiers **Parquet**, se connecte à des bases **PostgreSQL**, et sait lire/écrire sur du stockage **S3** (l'espace de stockage disponible sur les instances d'Onyxia, comme LS3 ou le SSPCloud).
+- **Simple** : une seule ligne pour se connecter, pas de serveur à administrer.
+
+::: {.callout-note}
+Documentation officielle : [duckdb.org/docs](https://duckdb.org/docs/current/) (client R) : [r.duckdb.org](https://r.duckdb.org/)
+:::
+
+## Le plan de la formation
+
+Cette formation suit le déroulé type d'une étude : se connecter, charger les données, les manipuler, puis exporter le résultat.
+
+::: {.step-card}
+### Étape 0 : [Créer une connexion DuckDB](00-connexion.qmd)
+On ouvre une session DuckDB depuis R. C'est le point de départ obligatoire de tout script.
+:::
+
+::: {.step-card}
+### Étape I : [Charger les données](01-chargement.qmd)
+On part d'une base PostgreSQL, on extrait les données vers un fichier Parquet, puis on apprend à importer un Parquet stocké sur un espace S3.
+:::
+
+::: {.step-card}
+### Étape II : [Manipuler les données](02-manipulation.qmd)
+On transforme les données avec DuckDB, en comparant deux façons de faire : les verbes `dplyr` habituels, et le SQL natif.
+:::
+
+::: {.step-card}
+### Étape III : [Exporter les données](03-export.qmd)
+On enregistre le résultat de l'étude, en SQL uniquement, au format de son choix.
+:::
+
+::: {.step-card}
+### Étape IV : [Exemple de pipeline complet](04-pipeline.qmd)
+On assemble toutes les étapes précédentes dans un script unique, du chargement à l'export final.
+:::
+
+## Avant de commencer
+
+Le seul package R nécessaire est `duckdb` (qui embarque `DBI`) :
+
+```r
+install.packages("duckdb")
+```
+
+::: {.callout-tip}
+Tout au long de cette formation, le code montré est à adapter : remplacez les noms de tables, de buckets ou de fichiers par les vôtres. Les extraits ne sont pas exécutés automatiquement sur ce site, copiez-les dans votre session R.
+:::

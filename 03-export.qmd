@@ -1,0 +1,108 @@
+---
+title: "Étape III : Exporter les données"
+---
+
+## L'idée
+
+Une fois le résultat de l'étude prêt, on l'enregistre dans un fichier. DuckDB fait cela avec une seule instruction SQL : `COPY ... TO ...`. Pas besoin d'un package supplémentaire (pas de `arrow`, pas de `write.csv`) : DuckDB écrit lui-même le fichier, au format demandé.
+
+On exécute cette commande depuis R avec `dbExecute()`.
+
+## Exporter une table entière
+
+```r
+dbExecute(con, "
+  COPY ma_table
+  TO 'resultat.parquet'
+  (FORMAT parquet)
+")
+```
+
+Le format est déduit de l'extension du fichier (`.parquet`, `.csv`) mais peut aussi être précisé explicitement avec `FORMAT`, comme ci-dessus.
+
+## Exporter le résultat d'une requête
+
+On peut exporter directement le résultat d'un `SELECT`, sans passer par une table intermédiaire — c'est le cas le plus fréquent pour une réponse à la demande, où l'on ne livre que le résultat final.
+
+```r
+dbExecute(con, "
+  COPY (
+    SELECT region, AVG(valeur) AS valeur_moyenne
+    FROM ma_table
+    WHERE annee = 2024
+    GROUP BY region
+  )
+  TO 'resultat_regions_2024.parquet'
+  (FORMAT parquet)
+")
+```
+
+## Exporter au format CSV
+
+Utile quand le fichier est destiné à être ouvert dans Excel ou par une personne qui n'utilise pas R.
+
+```r
+dbExecute(con, "
+  COPY (
+    SELECT region, AVG(valeur) AS valeur_moyenne
+    FROM ma_table
+    WHERE annee = 2024
+    GROUP BY region
+  )
+  TO 'resultat_regions_2024.csv'
+  (FORMAT csv, HEADER true, DELIMITER ';')
+")
+```
+
+## Exporter directement sur S3
+
+Si l'accès S3 a été configuré (voir [étape I](01-chargement.qmd)), on peut écrire directement vers un chemin `s3://`, sans passer par un fichier local :
+
+```r
+dbExecute(con, "
+  COPY (
+    SELECT region, AVG(valeur) AS valeur_moyenne
+    FROM ma_table
+    WHERE annee = 2024
+    GROUP BY region
+  )
+  TO 's3://mon-bucket/mon-etude/resultat_regions_2024.parquet'
+  (FORMAT parquet)
+")
+```
+
+## Découper l'export en plusieurs fichiers (optionnel)
+
+Pour un gros résultat, on peut demander à DuckDB de créer un fichier par valeur d'une colonne (par exemple un fichier par région), avec `PARTITION_BY`. Le résultat est alors un dossier contenant plusieurs fichiers Parquet plutôt qu'un seul fichier.
+
+```r
+dbExecute(con, "
+  COPY ma_table
+  TO 's3://mon-bucket/mon-etude/export_par_region'
+  (FORMAT parquet, PARTITION_BY (region))
+")
+```
+
+Si le dossier de destination existe déjà et contient des fichiers, DuckDB refuse d'écrire par défaut (pour éviter d'écraser un export existant par erreur). Pour relancer l'export et remplacer les fichiers, on ajoute l'option `OVERWRITE_OR_IGNORE` :
+
+```r
+dbExecute(con, "
+  COPY ma_table
+  TO 's3://mon-bucket/mon-etude/export_par_region'
+  (FORMAT parquet, PARTITION_BY (region), OVERWRITE_OR_IGNORE)
+")
+```
+
+::: {.callout-note}
+`OVERWRITE_OR_IGNORE` n'a d'effet que pour les exports en plusieurs fichiers (`PARTITION_BY`, comme ici, ou `PER_THREAD_OUTPUT`/`FILE_SIZE_BYTES`). Pour un export simple vers un seul fichier (sans ces options), DuckDB réécrit déjà le fichier existant par défaut, sans rien avoir à préciser.
+:::
+
+::: {.callout-tip}
+Pour réduire la taille des fichiers Parquet exportés, on peut préciser une compression, par exemple `COMPRESSION zstd` (bon rapport taille/vitesse, activé par défaut sur les versions récentes de DuckDB).
+:::
+
+## Sources
+
+- Instruction `COPY` : [duckdb.org/docs/current/sql/statements/copy](https://duckdb.org/docs/current/sql/statements/copy.html)
+- Écriture de fichiers Parquet : [duckdb.org/docs/current/data/parquet/overview](https://duckdb.org/docs/current/data/parquet/overview.html)
+- Configuration S3 (pour l'export direct vers `s3://`) : [duckdb.org/docs/current/core_extensions/httpfs/s3api](https://duckdb.org/docs/current/core_extensions/httpfs/s3api.html)

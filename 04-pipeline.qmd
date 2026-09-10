@@ -1,0 +1,111 @@
+---
+title: "Étape IV : Exemple de pipeline complet"
+---
+
+## L'idée
+
+On assemble les quatre étapes précédentes dans un scénario réaliste de réponse à la demande :
+
+> *« On nous demande la valeur moyenne d'un indicateur par région, pour l'année 2024. La donnée source vit dans PostgreSQL. Le livrable doit être un fichier Parquet déposé sur S3. »*
+
+Le script ci-dessous reprend, dans l'ordre :
+
+0. connexion à DuckDB ;
+1. connexion à PostgreSQL et export en Parquet ;
+2. manipulation des données (ici en `dplyr`, mais le SQL natif fonctionnerait aussi bien) ;
+3. export du résultat final sur S3 ;
+4. fermeture de la connexion.
+
+```r
+library(DBI)
+library(duckdb)
+library(dplyr)
+library(glue)
+
+# --- Étape 0 : connexion -----------------------------------------------
+
+con <- dbConnect(duckdb())
+
+# --- Configuration S3 (nécessaire pour les étapes I et III) ------------
+
+dbExecute(con, "INSTALL httpfs; LOAD httpfs;")
+
+dbExecute(con, glue("
+  CREATE OR REPLACE SECRET secret_s3 (
+    TYPE s3,
+    PROVIDER credential_chain,
+    ENDPOINT '{Sys.getenv(\"AWS_S3_ENDPOINT\")}',
+    REGION '{Sys.getenv(\"AWS_DEFAULT_REGION\")}',
+    URL_STYLE 'path'
+  );
+"))
+
+# --- Étape I : chargement (PostgreSQL -> Parquet) -----------------------
+
+dbExecute(con, "INSTALL postgres; LOAD postgres;")
+
+# Le mot de passe est lu depuis une variable d'environnement car ce script
+# est pensé pour tourner sans interaction (en session interactive, on peut
+# le remplacer par rstudioapi::askForPassword())
+dbExecute(con, glue("
+  CREATE OR REPLACE SECRET secret_pg (
+    TYPE postgres,
+    HOST '{Sys.getenv(\"PG_HOST\")}',
+    PORT {Sys.getenv(\"PG_PORT\")},
+    DATABASE '{Sys.getenv(\"PG_DB\")}',
+    USER '{Sys.getenv(\"PG_USER\")}',
+    PASSWORD '{Sys.getenv(\"PG_PASSWORD\")}'
+  );
+  ATTACH '' AS pg (TYPE postgres, SECRET secret_pg, READ_ONLY);
+"))
+
+# On extrait la table source vers un Parquet de travail sur S3
+dbExecute(con, "
+  COPY pg.ma_table
+  TO 's3://mon-bucket/mon-etude/brut/ma_table.parquet'
+  (FORMAT parquet)
+")
+
+# On la relit pour la suite du pipeline (vue paresseuse, rien n'est chargé en mémoire)
+dbExecute(con, "
+  CREATE OR REPLACE VIEW ma_table AS
+  SELECT * FROM read_parquet('s3://mon-bucket/mon-etude/brut/ma_table.parquet')
+")
+
+# --- Étape II : manipulation (ici en dplyr) -----------------------------
+
+resultat <- tbl(con, "ma_table") |>
+  filter(annee == 2024) |>
+  group_by(region) |>
+  summarise(valeur_moyenne = mean(valeur, na.rm = TRUE)) |>
+  collect()
+
+# On enregistre le résultat comme table DuckDB pour pouvoir l'exporter en SQL
+dbWriteTable(con, "resultat_final", resultat, overwrite = TRUE)
+
+# --- Étape III : export du livrable -------------------------------------
+
+dbExecute(con, "
+  COPY resultat_final
+  TO 's3://mon-bucket/mon-etude/livrable/resultat_regions_2024.parquet'
+  (FORMAT parquet)
+")
+
+# --- Fermeture -----------------------------------------------------------
+
+dbDisconnect(con, shutdown = TRUE)
+```
+
+::: {.callout-note}
+Ce script mélange volontairement `dplyr` (étape II) et SQL natif (étapes I et III) pour montrer que les deux cohabitent sans problème dans un même pipeline : c'est toujours DuckDB qui exécute le calcul.
+:::
+
+::: {.callout-tip}
+Si toute la manipulation avait été écrite en SQL natif, l'étape II et l'écriture intermédiaire via `dbWriteTable()` auraient pu être remplacées par une seule requête `COPY (SELECT ...) TO ...`, comme montré à l'[étape III](03-export.qmd).
+:::
+
+## Pour aller plus loin
+
+- [Documentation DuckDB](https://duckdb.org/docs/current/) — la référence complète.
+- [Client R](https://duckdb.org/docs/current/clients/r.html) — toutes les fonctions DBI et dbplyr disponibles.
+- [r.duckdb.org](https://r.duckdb.org/) — manuel de référence du package R.

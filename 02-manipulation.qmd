@@ -1,0 +1,81 @@
+---
+title: "Étape II : Manipuler les données"
+---
+
+## L'idée
+
+Une fois les données chargées ([étape I](01-chargement.qmd)), on peut les transformer de **deux façons** avec DuckDB :
+
+1. avec les verbes `dplyr` que vous utilisez déjà (`filter()`, `group_by()`, `summarise()`, …) ;
+2. en écrivant directement du **SQL natif**.
+
+Dans les deux cas, c'est le **même moteur DuckDB** qui exécute le calcul. `dplyr` ne fait que traduire votre code en SQL en coulisses. Le résultat est identique, le choix est une question de confort et de complexité de la requête.
+
+Dans les exemples ci-dessous, on part d'une table `ma_table` chargée à l'étape précédente (une table ou une vue DuckDB), avec des colonnes `region`, `annee` et `valeur`.
+
+## Avec dplyr
+
+Il faut le package `dbplyr`, qui fait le lien entre `dplyr` et une base de données (c'est le même mécanisme qu'avec n'importe quelle base compatible `DBI`).
+
+```r
+install.packages(c("dplyr", "dbplyr"))
+
+library(dplyr)
+```
+
+On utilise `tbl()` pour créer un lien **paresseux** (*lazy*) vers la table : rien n'est encore chargé en mémoire.
+
+```r
+ma_table_tbl <- tbl(con, "ma_table")
+
+resultat <- ma_table_tbl |>
+  filter(annee == 2024) |>
+  group_by(region) |>
+  summarise(valeur_moyenne = mean(valeur, na.rm = TRUE)) |>
+  collect()
+```
+
+Les verbes `dplyr` sont traduits en SQL et exécutés par DuckDB uniquement au moment du `collect()`, c'est seulement à ce moment que le résultat est rapatrié dans R sous forme de `data.frame`.
+
+::: {.callout-tip}
+Pour voir à quoi ressemble le SQL généré, utilisez `show_query()` à la place de `collect()` :
+
+```r
+ma_table_tbl |>
+  filter(annee == 2024) |>
+  group_by(region) |>
+  summarise(valeur_moyenne = mean(valeur, na.rm = TRUE)) |>
+  show_query()
+```
+:::
+
+## Avec le SQL natif
+
+On peut écrire la même requête directement en SQL, avec `dbGetQuery()` :
+
+```r
+resultat <- dbGetQuery(con, "
+  SELECT region, AVG(valeur) AS valeur_moyenne
+  FROM ma_table
+  WHERE annee = 2024
+  GROUP BY region
+")
+```
+
+Le résultat est directement un `data.frame`, pas besoin de `collect()`.
+
+## Quand utiliser l'un ou l'autre ?
+
+| | dplyr | SQL natif |
+|---|---|---|
+| Prise en main | Immédiate si vous connaissez déjà `dplyr` | Nécessite de connaître le SQL |
+| Requêtes simples (filtrer, grouper, agréger) | Très lisible | Très lisible aussi |
+| Requêtes complexes (fenêtres, sous-requêtes, CTE) | Peut devenir difficile à écrire | Plus naturel et plus proche du moteur |
+| Intégration dans un pipeline `dplyr` existant | Directe | Nécessite de repasser par `dbGetQuery()` |
+
+Il n'y a pas de mauvais choix : vous pouvez même mélanger les deux dans un même script, selon la requête à écrire. DuckDB exécute les deux de la même façon.
+
+## Sources
+
+- Intégration dbplyr dans le client R : [duckdb.org/docs/current/clients/r](https://duckdb.org/docs/current/clients/r.html#dbplyr)
+- Introduction au SQL DuckDB : [duckdb.org/docs/current/sql/introduction](https://duckdb.org/docs/current/sql/introduction.html)

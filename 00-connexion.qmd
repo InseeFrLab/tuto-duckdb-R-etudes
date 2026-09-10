@@ -1,0 +1,63 @@
+---
+title: "Étape 0 : Créer une connexion DuckDB"
+---
+
+## L'idée
+
+Pour commencer, il faut ouvrir une **connexion** vers DuckDB. C'est un peu comme ouvrir une session de travail : tant qu'elle est ouverte, on peut y stocker des tables temporaires et lancer des requêtes.
+
+DuckDB s'utilise en R avec le package `duckdb`, qui suit l'interface standard `DBI` (la même interface que pour se connecter à PostgreSQL ou MySQL en R). Si vous avez déjà utilisé `DBI::dbConnect()` avec une autre base, la logique est identique.
+
+## Installer et charger le package
+
+```r
+install.packages("duckdb")
+
+library(DBI)
+library(duckdb)
+```
+
+## Ouvrir une connexion
+
+Deux cas de figure :
+
+### Connexion en mémoire (le plus courant pour une étude)
+
+Les données ne sont pas conservées sur disque : tout disparaît à la fermeture de la session R. C'est suffisant pour la majorité des études ponctuelles.
+
+```r
+con <- dbConnect(duckdb())
+```
+
+### Connexion vers un fichier sur disque
+
+Utile si vous voulez que la base DuckDB persiste d'une session R à l'autre (par exemple pour un projet que vous reprenez sur plusieurs jours).
+
+```r
+con <- dbConnect(duckdb(), dbdir = "mon_etude.duckdb")
+```
+
+::: {.callout-tip}
+Un seul objet `con` suffit pour tout le script : c'est lui qu'on réutilise dans toutes les étapes suivantes (chargement, manipulation, export).
+:::
+
+Il est aussi possible de configurer le comportement de la base (mémoire maximale utilisée, nombre de threads, etc.) avec des instructions `SET`
+
+```r
+con <- dbExecute(con, "SET memory_limit = '10GB'")
+```
+Voir la [documentation de configuration](https://duckdb.org/docs/current/configuration/overview.html) pour la liste complète des options.
+
+## Fermer la connexion
+
+Une fois le script terminé, on ferme proprement la connexion. C'est une bonne pratique à prendre dès le départ, en particulier avec une base sur disque.
+
+```r
+dbDisconnect(con, shutdown = TRUE)
+```
+
+## Sources
+
+- Documentation du client R : [duckdb.org/docs/current/clients/r](https://duckdb.org/docs/current/clients/r.html)
+- Manuel de référence du package R : [r.duckdb.org](https://r.duckdb.org/)
+- Options de configuration de DuckDB : [duckdb.org/docs/current/configuration/overview](https://duckdb.org/docs/current/configuration/overview.html)

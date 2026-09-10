@@ -1,0 +1,59 @@
+project:
+  type: website
+  output-dir: _site
+
+lang: fr
+
+website:
+  title: "Introduction à DuckDB avec R"
+  description: "Prise en main de DuckDB pour réaliser des études et répondre à des demandes"
+  page-navigation: true
+  back-to-top-navigation: true
+  navbar:
+    left:
+      - text: "Accueil"
+        href: index.qmd
+      - text: "0. Connexion"
+        href: 00-connexion.qmd
+      - text: "I. Chargement"
+        href: 01-chargement.qmd
+      - text: "II. Manipulation"
+        href: 02-manipulation.qmd
+      - text: "III. Export"
+        href: 03-export.qmd
+      - text: "IV. Pipeline complet"
+        href: 04-pipeline.qmd
+    tools:
+      - icon: house
+        href: index.qmd
+
+  sidebar:
+    style: docked
+    contents:
+      - index.qmd
+      - section: "Les 4 étapes"
+        contents:
+          - 00-connexion.qmd
+          - 01-chargement.qmd
+          - 02-manipulation.qmd
+          - 03-export.qmd
+      - 04-pipeline.qmd
+
+format:
+  html:
+    theme:
+      light: cosmo
+      dark: darkly
+    css: styles.css
+    toc: true
+    toc-depth: 3
+    number-sections: false
+    code-copy: true
+    code-overflow: wrap
+    highlight-style: github
+    fig-align: center
+    mainfont: "system-ui"
+
+execute:
+  eval: false
+  echo: true

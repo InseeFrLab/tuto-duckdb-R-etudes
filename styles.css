@@ -1,0 +1,21 @@
+/* Petits ajustements visuels pour la formation DuckDB */
+
+.callout {
+  border-radius: 6px;
+}
+
+.step-card {
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+  background-color: #f8f9fa;
+}
+
+.step-card h3 {
+  margin-top: 0;
+}
+
+code {
+  border-radius: 4px;
+}
