@@ -26,7 +26,7 @@ Deux cas de figure :
 Les données ne sont pas conservées sur disque : tout disparaît à la fermeture de la session R. C'est suffisant pour la majorité des études ponctuelles.
 
 ```r
-con <- dbConnect(duckdb())
+con <- DBI::dbConnect(duckdb::duckdb())
 ```
 
 ### Connexion vers un fichier sur disque
@@ -34,7 +34,7 @@ con <- dbConnect(duckdb())
 Utile si vous voulez que la base DuckDB persiste d'une session R à l'autre (par exemple pour un projet que vous reprenez sur plusieurs jours).
 
 ```r
-con <- dbConnect(duckdb(), dbdir = "mon_etude.duckdb")
+con <- DBI::dbConnect(duckdb::duckdb(), dbdir = "mon_etude.duckdb")
 ```
 
 ::: {.callout-tip}
@@ -44,7 +44,7 @@ Un seul objet `con` suffit pour tout le script : c'est lui qu'on réutilise dans
 Il est aussi possible de configurer le comportement de la base (mémoire maximale utilisée, nombre de threads, etc.) avec des instructions `SET`
 
 ```r
-con <- dbExecute(con, "SET memory_limit = '10GB'")
+DBI::dbExecute(con, "SET memory_limit = '10GB'")
 ```
 Voir la [documentation de configuration](https://duckdb.org/docs/current/configuration/overview.html) pour la liste complète des options.
 
@@ -53,7 +53,7 @@ Voir la [documentation de configuration](https://duckdb.org/docs/current/configu
 Une fois le script terminé, on ferme proprement la connexion. C'est une bonne pratique à prendre dès le départ, en particulier avec une base sur disque.
 
 ```r
-dbDisconnect(con, shutdown = TRUE)
+DBI::dbDisconnect(con, shutdown = TRUE)
 ```
 
 ## Sources

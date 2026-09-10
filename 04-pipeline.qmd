@@ -24,13 +24,13 @@ library(glue)
 
 # --- Étape 0 : connexion -----------------------------------------------
 
-con <- dbConnect(duckdb())
+con <- DBI::dbConnect(duckdb::duckdb())
 
 # --- Configuration S3 (nécessaire pour les étapes I et III) ------------
 
-dbExecute(con, "INSTALL httpfs; LOAD httpfs;")
+DBI::dbExecute(con, "INSTALL httpfs; LOAD httpfs;")
 
-dbExecute(con, glue("
+DBI::dbExecute(con, glue::glue("
   CREATE OR REPLACE SECRET secret_s3 (
     TYPE s3,
     PROVIDER credential_chain,
@@ -42,12 +42,12 @@ dbExecute(con, glue("
 
 # --- Étape I : chargement (PostgreSQL -> Parquet) -----------------------
 
-dbExecute(con, "INSTALL postgres; LOAD postgres;")
+DBI::dbExecute(con, "INSTALL postgres; LOAD postgres;")
 
 # Le mot de passe est lu depuis une variable d'environnement car ce script
 # est pensé pour tourner sans interaction (en session interactive, on peut
 # le remplacer par rstudioapi::askForPassword())
-dbExecute(con, glue("
+DBI::dbExecute(con, glue::glue("
   CREATE OR REPLACE SECRET secret_pg (
     TYPE postgres,
     HOST '{Sys.getenv(\"PG_HOST\")}',
@@ -60,35 +60,35 @@ dbExecute(con, glue("
 "))
 
 # On extrait la table source vers un Parquet de travail sur S3
-dbExecute(con, "
+DBI::dbExecute(con, "
   COPY pg.ma_table
   TO 's3://mon-bucket/mon-etude/brut/ma_table.parquet'
   (FORMAT parquet)
 ")
 
 # On la relit pour la suite du pipeline (vue paresseuse, rien n'est chargé en mémoire)
-dbExecute(con, "
+DBI::dbExecute(con, "
   CREATE OR REPLACE VIEW ma_table AS
   SELECT * FROM read_parquet('s3://mon-bucket/mon-etude/brut/ma_table.parquet')
 ")
 
 # PostgreSQL n'est plus nécessaire pour la suite : on ferme la connexion
-dbExecute(con, "DETACH pg")
+DBI::dbExecute(con, "DETACH pg")
 
 # --- Étape II : manipulation (ici en dplyr) -----------------------------
 
-resultat <- tbl(con, "ma_table") |>
-  filter(annee == 2024) |>
-  group_by(region) |>
-  summarise(valeur_moyenne = mean(valeur, na.rm = TRUE)) |>
-  collect()
+resultat <- dplyr::tbl(con, "ma_table") |>
+  dplyr::filter(annee == 2024) |>
+  dplyr::group_by(region) |>
+  dplyr::summarise(valeur_moyenne = mean(valeur, na.rm = TRUE)) |>
+  dplyr::collect()
 
 # On enregistre le résultat comme table DuckDB pour pouvoir l'exporter en SQL
-dbWriteTable(con, "resultat_final", resultat, overwrite = TRUE)
+DBI::dbWriteTable(con, "resultat_final", resultat, overwrite = TRUE)
 
 # --- Étape III : export du livrable -------------------------------------
 
-dbExecute(con, "
+DBI::dbExecute(con, "
   COPY resultat_final
   TO 's3://mon-bucket/mon-etude/livrable/resultat_regions_2024.parquet'
   (FORMAT parquet)
@@ -96,7 +96,7 @@ dbExecute(con, "
 
 # --- Fermeture -----------------------------------------------------------
 
-dbDisconnect(con, shutdown = TRUE)
+DBI::dbDisconnect(con, shutdown = TRUE)
 ```
 
 ::: {.callout-note}
@@ -104,7 +104,7 @@ Ce script mélange volontairement `dplyr` (étape II) et SQL natif (étapes I et
 :::
 
 ::: {.callout-tip}
-Si toute la manipulation avait été écrite en SQL natif, l'étape II et l'écriture intermédiaire via `dbWriteTable()` auraient pu être remplacées par une seule requête `COPY (SELECT ...) TO ...`, comme montré à l'[étape III](03-export.qmd).
+Si toute la manipulation avait été écrite en SQL natif, l'étape II et l'écriture intermédiaire via `DBI::dbWriteTable()` auraient pu être remplacées par une seule requête `COPY (SELECT ...) TO ...`, comme montré à l'[étape III](03-export.qmd).
 :::
 
 ## Pour aller plus loin

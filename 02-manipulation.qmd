@@ -6,7 +6,7 @@ title: "Étape II : Manipuler les données"
 
 Une fois les données chargées ([étape I](01-chargement.qmd)), on peut les transformer de **deux façons** avec DuckDB :
 
-1. avec les verbes `dplyr` que vous utilisez déjà (`filter()`, `group_by()`, `summarise()`, …) ;
+1. avec les verbes `dplyr` que vous utilisez déjà (`dplyr::filter()`, `dplyr::group_by()`, `dplyr::summarise()`, …) ;
 2. en écrivant directement du **SQL natif**.
 
 Dans les deux cas, c'est le **même moteur DuckDB** qui exécute le calcul. `dplyr` ne fait que traduire votre code en SQL en coulisses. Le résultat est identique, le choix est une question de confort et de complexité de la requête.
@@ -23,38 +23,38 @@ install.packages(c("dplyr", "dbplyr"))
 library(dplyr)
 ```
 
-On utilise `tbl()` pour créer un lien **paresseux** (*lazy*) vers la table : rien n'est encore chargé en mémoire. C'est la dernière étape `collect()` qui s'occupera de le faire.
+On utilise `dplyr::tbl()` pour créer un lien **paresseux** (*lazy*) vers la table : rien n'est encore chargé en mémoire. C'est la dernière étape `dplyr::collect()` qui s'occupera de le faire.
 
 ```r
-ma_table_tbl <- tbl(con, "ma_table")
+ma_table_tbl <- dplyr::tbl(con, "ma_table")
 
 resultat <- ma_table_tbl |>
-  filter(annee == 2024) |>
-  group_by(region) |>
-  summarise(valeur_moyenne = mean(valeur, na.rm = TRUE)) |>
-  collect()
+  dplyr::filter(annee == 2024) |>
+  dplyr::group_by(region) |>
+  dplyr::summarise(valeur_moyenne = mean(valeur, na.rm = TRUE)) |>
+  dplyr::collect()
 ```
 
-Les verbes `dplyr` sont traduits en SQL et exécutés par DuckDB uniquement au moment du `collect()`, c'est seulement à ce moment que le résultat est rapatrié dans R sous forme de `data.frame`.
+Les verbes `dplyr` sont traduits en SQL et exécutés par DuckDB uniquement au moment du `dplyr::collect()`, c'est seulement à ce moment que le résultat est rapatrié dans R sous forme de `data.frame`.
 
 ::: {.callout-tip}
-Pour voir à quoi ressemble le SQL généré, utilisez `show_query()` à la place de `collect()` :
+Pour voir à quoi ressemble le SQL généré, utilisez `dplyr::show_query()` à la place de `dplyr::collect()` :
 
 ```r
 ma_table_tbl |>
-  filter(annee == 2024) |>
-  group_by(region) |>
-  summarise(valeur_moyenne = mean(valeur, na.rm = TRUE)) |>
-  show_query()
+  dplyr::filter(annee == 2024) |>
+  dplyr::group_by(region) |>
+  dplyr::summarise(valeur_moyenne = mean(valeur, na.rm = TRUE)) |>
+  dplyr::show_query()
 ```
 :::
 
 ## Avec le SQL natif
 
-On peut écrire la même requête directement en SQL, avec `dbGetQuery()` :
+On peut écrire la même requête directement en SQL, avec `DBI::dbGetQuery()` :
 
 ```r
-resultat <- dbGetQuery(con, "
+resultat <- DBI::dbGetQuery(con, "
   SELECT region, AVG(valeur) AS valeur_moyenne
   FROM ma_table
   WHERE annee = 2024
@@ -62,7 +62,7 @@ resultat <- dbGetQuery(con, "
 ")
 ```
 
-Le résultat est directement un `data.frame`, pas besoin de `collect()`.
+Le résultat est directement un `data.frame`, pas besoin de `dplyr::collect()`.
 
 ## Quand utiliser l'un ou l'autre ?
 
@@ -71,7 +71,7 @@ Le résultat est directement un `data.frame`, pas besoin de `collect()`.
 | Prise en main | Immédiate si vous connaissez déjà `dplyr` | Nécessite de connaître le SQL |
 | Requêtes simples (filtrer, grouper, agréger) | Très lisible | Très lisible aussi |
 | Requêtes complexes (fenêtres, sous-requêtes, CTE) | Peut devenir difficile à écrire | Plus naturel et plus proche du moteur |
-| Intégration dans un pipeline `dplyr` existant | Directe | Nécessite de repasser par `dbGetQuery()` |
+| Intégration dans un pipeline `dplyr` existant | Directe | Nécessite de repasser par `DBI::dbGetQuery()` |
 
 Il n'y a pas de mauvais choix : vous pouvez même mélanger les deux dans un même script, selon la requête à écrire. DuckDB exécute les deux de la même façon.
 

@@ -6,12 +6,12 @@ title: "Étape III : Exporter les données"
 
 Une fois le résultat de l'étude prêt, on l'enregistre dans un fichier. DuckDB fait cela avec une seule instruction SQL : `COPY ... TO ...`. Pas besoin d'un package supplémentaire (pas de `arrow`, pas de `write.csv`) : DuckDB écrit lui-même le fichier, au format demandé.
 
-On exécute cette commande depuis R avec `dbExecute()`.
+On exécute cette commande depuis R avec `DBI::dbExecute()`.
 
 ## Exporter une table entière
 
 ```r
-dbExecute(con, "
+DBI::dbExecute(con, "
   COPY ma_table
   TO 'resultat.parquet'
   (FORMAT parquet)
@@ -25,7 +25,7 @@ Le format est déduit de l'extension du fichier (`.parquet`, `.csv`) mais peut a
 On peut exporter directement le résultat d'un `SELECT`, sans passer par une table intermédiaire — c'est le cas le plus fréquent pour une réponse à la demande, où l'on ne livre que le résultat final.
 
 ```r
-dbExecute(con, "
+DBI::dbExecute(con, "
   COPY (
     SELECT region, AVG(valeur) AS valeur_moyenne
     FROM ma_table
@@ -42,7 +42,7 @@ dbExecute(con, "
 Utile quand le fichier est destiné à être ouvert dans Excel ou par une personne qui n'utilise pas R.
 
 ```r
-dbExecute(con, "
+DBI::dbExecute(con, "
   COPY (
     SELECT region, AVG(valeur) AS valeur_moyenne
     FROM ma_table
@@ -59,7 +59,7 @@ dbExecute(con, "
 Si l'accès S3 a été configuré (voir [étape I](01-chargement.qmd)), on peut écrire directement vers un chemin `s3://`, sans passer par un fichier local :
 
 ```r
-dbExecute(con, "
+DBI::dbExecute(con, "
   COPY (
     SELECT region, AVG(valeur) AS valeur_moyenne
     FROM ma_table
@@ -76,7 +76,7 @@ dbExecute(con, "
 Pour un gros résultat, on peut demander à DuckDB de créer un fichier par valeur d'une colonne (par exemple un fichier par région), avec `PARTITION_BY`. Le résultat est alors un dossier contenant plusieurs fichiers Parquet plutôt qu'un seul fichier.
 
 ```r
-dbExecute(con, "
+DBI::dbExecute(con, "
   COPY ma_table
   TO 's3://mon-bucket/mon-etude/export_par_region'
   (FORMAT parquet, PARTITION_BY (region))
@@ -86,7 +86,7 @@ dbExecute(con, "
 Si le dossier de destination existe déjà et contient des fichiers, DuckDB refuse d'écrire par défaut (pour éviter d'écraser un export existant par erreur). Pour relancer l'export et remplacer les fichiers, on ajoute l'option `OVERWRITE_OR_IGNORE` :
 
 ```r
-dbExecute(con, "
+DBI::dbExecute(con, "
   COPY ma_table
   TO 's3://mon-bucket/mon-etude/export_par_region'
   (FORMAT parquet, PARTITION_BY (region), OVERWRITE_OR_IGNORE)

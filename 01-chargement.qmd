@@ -15,7 +15,7 @@ Le code diffère un peu selon le cas : les sections ci-dessous sont donc découp
 
 Ce tuto traite aussi du cas où l'utilisateur travaille directement depuis un fichier **parquet**. Dans ce cas, il faut tout de même faire le [préalable de configuration](#prealable-s3) ci-dessous (pour S3 uniquement, un répertoire classique ne demande aucune configuration), puis aller directement à la [partie B](#partie-b) (la partie A, spécifique à PostgreSQL, peut être ignorée).
 
-Toutes les commandes DuckDB peuvent être lancées depuis R via `dbExecute()` (pour une commande sans résultat à afficher) ou `dbGetQuery()` (pour récupérer un résultat sous forme de `data.frame`).
+Toutes les commandes DuckDB peuvent être lancées depuis R via `DBI::dbExecute()` (pour une commande sans résultat à afficher) ou `DBI::dbGetQuery()` (pour récupérer un résultat sous forme de `data.frame`).
 
 ## Préalable : configurer l'accès au stockage {#prealable-s3}
 
@@ -28,7 +28,7 @@ Cette configuration sert pour **les deux usages** ci-dessous : écrire un Parque
 DuckDB utilise l'extension `httpfs` pour parler à S3. On commence par l'installer :
 
 ```r
-dbExecute(con, "INSTALL httpfs; LOAD httpfs;")
+DBI::dbExecute(con, "INSTALL httpfs; LOAD httpfs;")
 ```
 
 :::: {.callout-note}
@@ -50,7 +50,7 @@ install.packages("glue")
 
 library(glue)
 
-dbExecute(con, glue("
+DBI::dbExecute(con, glue::glue("
   CREATE OR REPLACE SECRET secret_s3 (
     TYPE s3,
     PROVIDER credential_chain,
@@ -80,7 +80,7 @@ On préfère écrire les chemins avec des slashs (`/`), même sous Windows (`X:/
 DuckDB peut se connecter directement à une base PostgreSQL grâce à l'extension `postgres`, et la voir comme si ses tables étaient des tables DuckDB.
 
 ```r
-dbExecute(con, "INSTALL postgres; LOAD postgres;")
+DBI::dbExecute(con, "INSTALL postgres; LOAD postgres;")
 ```
 
 Comme pour S3, on protège les identifiants dans un **secret** plutôt que de construire une chaîne de connexion en clair. On peut aller plus loin en demandant le nom d'utilisateur et le mot de passe interactivement, plutôt que de les écrire dans le script : 
@@ -89,7 +89,7 @@ Comme pour S3, on protège les identifiants dans un **secret** plutôt que de co
   - `rstudioapi::askForPassword()` pour le mot de passe (*saisie masquée*). Ainsi, rien n'est jamais écrit dans le script, une variable d'environnement, ou l'historique des commandes.
 
 ```r
-dbExecute(con, glue("
+DBI::dbExecute(con, glue::glue("
   CREATE OR REPLACE SECRET secret_pg (
     TYPE postgres,
     HOST 'mon-serveur-postgres',
@@ -118,7 +118,7 @@ Ces deux fonctions n'ouvrent une invite que dans une session **interactive** (RS
 Une fois attachée, la base PostgreSQL s'utilise comme n'importe quelle table DuckDB, préfixée par le nom donné (`pg`) :
 
 ```r
-dbGetQuery(con, "SELECT * FROM pg.ma_table LIMIT 5")
+DBI::dbGetQuery(con, "SELECT * FROM pg.ma_table LIMIT 5")
 ```
 
 ### 3. Exporter la table en Parquet
@@ -128,8 +128,21 @@ dbGetQuery(con, "SELECT * FROM pg.ma_table LIMIT 5")
 ## S3 (SSPCLoud ou LS3)
 
 ```r
-dbExecute(con, "
+DBI::dbExecute(con, "
   COPY pg.ma_table
+  TO 's3://mon-bucket/mon-etude/ma_table.parquet'
+  (FORMAT parquet , OVERWRITE_OR_IGNORE)
+")
+```
+
+ou, pour extraire directement une table issue d'une requête
+
+```r
+DBI::dbExecute(con, "
+  COPY (
+    SELECT *
+    FROM pg.ma_table
+    )
   TO 's3://mon-bucket/mon-etude/ma_table.parquet'
   (FORMAT parquet , OVERWRITE_OR_IGNORE)
 ")
@@ -138,10 +151,23 @@ dbExecute(con, "
 ## AUS
 
 ```r
-dbExecute(con, "
+DBI::dbExecute(con, "
   COPY pg.ma_table
   TO 'X:/mon_repertoire/ma_table.parquet'
   (FORMAT parquet, OVERWRITE_OR_IGNORE)
+")
+```
+
+ou, pour extraire directement une table issue d'une requête
+
+```r
+DBI::dbExecute(con, "
+  COPY (
+    SELECT *
+    FROM pg.ma_table
+    )
+  TO 'X:/mon_repertoire/ma_table.parquet'
+  (FORMAT parquet , OVERWRITE_OR_IGNORE)
 ")
 ```
 
@@ -154,11 +180,11 @@ Ce fichier Parquet est désormais disponible, prêt à être réutilisé (par vo
 Une fois l'extraction terminée, on n'a plus besoin de PostgreSQL pour la suite du pipeline (manipulation, export). On détache la base avec `DETACH` :
 
 ```r
-dbExecute(con, "DETACH pg")
+DBI::dbExecute(con, "DETACH pg")
 ```
 
 ::: {.callout-tip}
-`DETACH` ferme la connexion à PostgreSQL, contrairement à `dbDisconnect(con)` qui fermerait toute la session DuckDB (y compris les données déjà chargées). Le faire dès que possible libère une connexion sur le serveur PostgreSQL, ce qui compte s'il a un nombre de connexions limité.
+`DETACH` ferme la connexion à PostgreSQL, contrairement à `DBI::dbDisconnect(con)` qui fermerait toute la session DuckDB (y compris les données déjà chargées). Le faire dès que possible libère une connexion sur le serveur PostgreSQL, ce qui compte s'il a un nombre de connexions limité.
 :::
 
 ## B. Importer un Parquet déjà stocké {#partie-b}
@@ -170,7 +196,7 @@ Si le fichier existe déjà (déposé par vous ou par quelqu'un d'autre), il suf
 ## S3 (SSPCloud ou LS3)
 
 ```r
-donnees <- dbGetQuery(con, "
+donnees <- DBI::dbGetQuery(con, "
   SELECT *
   FROM read_parquet('s3://mon-bucket/mon-etude/ma_table.parquet')
 ")
@@ -179,7 +205,7 @@ donnees <- dbGetQuery(con, "
 On peut aussi le transformer en **vue** DuckDB, pratique pour le réutiliser plusieurs fois dans l'étape suivante sans le charger en mémoire R :
 
 ```r
-dbExecute(con, "
+DBI::dbExecute(con, "
   CREATE OR REPLACE VIEW ma_table AS
   SELECT * FROM read_parquet('s3://mon-bucket/mon-etude/ma_table.parquet')
 ")
@@ -188,7 +214,7 @@ dbExecute(con, "
 ## AUS
 
 ```r
-donnees <- dbGetQuery(con, "
+donnees <- DBI::dbGetQuery(con, "
   SELECT *
   FROM read_parquet('X:/mon_repertoire/ma_table.parquet')
 ")
@@ -197,7 +223,7 @@ donnees <- dbGetQuery(con, "
 On peut aussi le transformer en **vue** DuckDB, pratique pour le réutiliser plusieurs fois dans l'étape suivante sans le charger en mémoire R :
 
 ```r
-dbExecute(con, "
+DBI::dbExecute(con, "
   CREATE OR REPLACE VIEW ma_table AS
   SELECT * FROM read_parquet('X:/mon_repertoire/ma_table.parquet')
 ")
@@ -214,8 +240,8 @@ L'utilisation des `VIEW` avec duckDb s'inscrit dans une utilisation plus poussé
 Pour lire plusieurs fichiers Parquet d'un coup (par exemple un export découpé en plusieurs morceaux), on utilise un motif avec `*`, que ce soit sur S3 ou dans un répertoire :
 
 ```r
-dbGetQuery(con, "SELECT * FROM read_parquet('s3://mon-bucket/mon-etude/*.parquet')")
-dbGetQuery(con, "SELECT * FROM read_parquet('X:/mon_repertoire/*.parquet')")
+DBI::dbGetQuery(con, "SELECT * FROM read_parquet('s3://mon-bucket/mon-etude/*.parquet')")
+DBI::dbGetQuery(con, "SELECT * FROM read_parquet('X:/mon_repertoire/*.parquet')")
 ```
 :::
 
