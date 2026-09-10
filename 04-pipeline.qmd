@@ -72,6 +72,9 @@ dbExecute(con, "
   SELECT * FROM read_parquet('s3://mon-bucket/mon-etude/brut/ma_table.parquet')
 ")
 
+# PostgreSQL n'est plus nécessaire pour la suite : on ferme la connexion
+dbExecute(con, "DETACH pg")
+
 # --- Étape II : manipulation (ici en dplyr) -----------------------------
 
 resultat <- tbl(con, "ma_table") |>

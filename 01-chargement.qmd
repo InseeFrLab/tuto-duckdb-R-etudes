@@ -2,13 +2,26 @@
 title: "Étape I : Charger les données"
 ---
 
-On part d'une donnée source dans PostgreSQL, on la convertit en fichier **Parquet** (un format de fichier compact, colonne par colonne, fait pour l'analyse de données), puis on montre comment relire un Parquet déjà déposé sur un espace de stockage **S3**.
+Dans les différentes équipes de production à l'Insee, on travaille à partir d'une base de données PostgreSQL ou bien à partir d'un fichier **Parquet**. 
 
-Ce tuto traite aussi du cas où l'utilisateur travaille directement depuis un fichier parquet. Dans ce cas, il faut tout de même faire le [préalable de configuration S3](#prealable-s3) ci-dessous, puis aller directement à la [partie B](#partie-b) (la partie A, spécifique à PostgreSQL, peut être ignorée).
+Depuis une base PostgreSQL, on convertit la table de travail en fichier **Parquet** (un format de fichier compact, colonne par colonne, fait pour l'analyse de données), puis on importe ce fichier pour le retraiter afin de produire les statistiques souhaitées.
+
+Ce fichier Parquet peut être stocké à deux endroits différents, selon votre environnement de travail :
+
+- un espace de stockage **S3** (comme sur *SSP Cloud* ou *LS3*) ;
+- un **répertoire classique**, local ou sur un lecteur réseau (sur *AUS*, par exemple `X:/mon_repertoire`).
+
+Le code diffère un peu selon le cas : les sections ci-dessous sont donc découpées en deux onglets, un par type de stockage.
+
+Ce tuto traite aussi du cas où l'utilisateur travaille directement depuis un fichier **parquet**. Dans ce cas, il faut tout de même faire le [préalable de configuration](#prealable-s3) ci-dessous (pour S3 uniquement, un répertoire classique ne demande aucune configuration), puis aller directement à la [partie B](#partie-b) (la partie A, spécifique à PostgreSQL, peut être ignorée).
 
 Toutes les commandes DuckDB peuvent être lancées depuis R via `dbExecute()` (pour une commande sans résultat à afficher) ou `dbGetQuery()` (pour récupérer un résultat sous forme de `data.frame`).
 
-## Préalable : configurer l'accès à S3 {#prealable-s3}
+## Préalable : configurer l'accès au stockage {#prealable-s3}
+
+::: {.panel-tabset}
+
+## S3 (SSPCloud ou LS3)
 
 Cette configuration sert pour **les deux usages** ci-dessous : écrire un Parquet sur S3, et en importer un.
 
@@ -18,12 +31,19 @@ DuckDB utilise l'extension `httpfs` pour parler à S3. On commence par l'install
 dbExecute(con, "INSTALL httpfs; LOAD httpfs;")
 ```
 
-Sur SSP Cloud, les identifiants (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`) sont déjà disponibles dans des variables d'environnement : un secret de type `credential_chain` demande à DuckDB d'aller les chercher lui-même, sans les écrire en clair dans le script.
+:::: {.callout-note}
+# Gestion des variables d'environnement S3
+Une variable d'environnement est une information stockée en dehors de votre script (dans la session R, le conteneur, le serveur...), accessible depuis le code avec `Sys.getenv("NOM_DE_LA_VARIABLE")`. C'est une manière courante de mettre à disposition des identifiants sans avoir à les écrire en clair dans le script. Par exemple, les variables d'authentification et les jetons personnels associés au compte `gitlab` ou les variables d'accès au stocage S3.
 
-::: {.callout-important}
+Sur SSP Cloud ou LS3, les identifiants d'accès au S3 (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`) sont déjà disponibles dans des variables d'environnement : un secret de type `credential_chain` demande à DuckDB d'aller les chercher lui-même, sans les écrire en clair dans le script.
+::::
+
+:::: {.callout-important}
 ## Le paramétrage des accès au S3 via DuckDB
 `credential_chain` ne récupère automatiquement que les **identifiants**. Il ne connaît pas l'adresse du stockage S3 de SSP Cloud (ce n'est pas un serveur Amazon standard) : il faut donc lui préciser explicitement l'`ENDPOINT`, sans quoi DuckDB irait chercher sur les serveurs Amazon par défaut. On en profite pour indiquer aussi la région et le style d'URL.
-:::
+::::
+
+On crée le secret pour accéder aux données stockée dans le S3 :
 
 ```r
 install.packages("glue")
@@ -40,6 +60,18 @@ dbExecute(con, glue("
   );
 "))
 ```
+
+## AUS
+
+Rien à configurer ! DuckDB lit et écrit directement sur le système de fichiers (disque local, répertoire réseau monté sur votre poste...) sans extension ni identifiants : il suffit d'utiliser un chemin classique, par exemple `X:/mon_repertoire/mon_fichier.parquet`.
+
+:::: {.callout-tip}
+On préfère écrire les chemins avec des slashs (`/`), même sous Windows (`X:/mon_repertoire`) : ça fonctionne partout, contrairement à l'antislash (`\`) qui peut être mal interprété dans une chaîne de caractères.
+::::
+
+:::
+
+
 
 ## A. De PostgreSQL vers un fichier Parquet
 
@@ -89,21 +121,53 @@ Une fois attachée, la base PostgreSQL s'utilise comme n'importe quelle table Du
 dbGetQuery(con, "SELECT * FROM pg.ma_table LIMIT 5")
 ```
 
-### 3. Exporter la table en Parquet sur S3
+### 3. Exporter la table en Parquet
+
+::: {.panel-tabset}
+
+## S3 (SSPCLoud ou LS3)
 
 ```r
 dbExecute(con, "
   COPY pg.ma_table
   TO 's3://mon-bucket/mon-etude/ma_table.parquet'
-  (FORMAT parquet)
+  (FORMAT parquet , OVERWRITE_OR_IGNORE)
 ")
 ```
 
-Ce fichier Parquet est désormais disponible sur S3, prêt à être réutilisé (par vous ou par d'autres) sans repasser par PostgreSQL.
+## AUS
 
-## B. Importer un Parquet déjà stocké sur S3 {#partie-b}
+```r
+dbExecute(con, "
+  COPY pg.ma_table
+  TO 'X:/mon_repertoire/ma_table.parquet'
+  (FORMAT parquet, OVERWRITE_OR_IGNORE)
+")
+```
 
-Si le fichier existe déjà sur S3 (déposé par vous ou par quelqu'un d'autre), il suffit de le lire avec `read_parquet()`, à condition que l'accès S3 ait été configuré comme ci-dessus.
+:::
+
+Ce fichier Parquet est désormais disponible, prêt à être réutilisé (par vous ou par d'autres) sans repasser par PostgreSQL.
+
+### 4. Fermer l'accès à PostgreSQL
+
+Une fois l'extraction terminée, on n'a plus besoin de PostgreSQL pour la suite du pipeline (manipulation, export). On détache la base avec `DETACH` :
+
+```r
+dbExecute(con, "DETACH pg")
+```
+
+::: {.callout-tip}
+`DETACH` ferme la connexion à PostgreSQL, contrairement à `dbDisconnect(con)` qui fermerait toute la session DuckDB (y compris les données déjà chargées). Le faire dès que possible libère une connexion sur le serveur PostgreSQL, ce qui compte s'il a un nombre de connexions limité.
+:::
+
+## B. Importer un Parquet déjà stocké {#partie-b}
+
+Si le fichier existe déjà (déposé par vous ou par quelqu'un d'autre), il suffit de le lire avec `read_parquet()`, à condition que l'accès au stockage ait été configuré comme ci-dessus (uniquement nécessaire pour S3).
+
+::: {.panel-tabset}
+
+## S3 (SSPCloud ou LS3)
 
 ```r
 donnees <- dbGetQuery(con, "
@@ -121,19 +185,37 @@ dbExecute(con, "
 ")
 ```
 
+## AUS
+
+```r
+donnees <- dbGetQuery(con, "
+  SELECT *
+  FROM read_parquet('X:/mon_repertoire/ma_table.parquet')
+")
+```
+
+On peut aussi le transformer en **vue** DuckDB, pratique pour le réutiliser plusieurs fois dans l'étape suivante sans le charger en mémoire R :
+
+```r
+dbExecute(con, "
+  CREATE OR REPLACE VIEW ma_table AS
+  SELECT * FROM read_parquet('X:/mon_repertoire/ma_table.parquet')
+")
+```
+
+:::
+
 :::{.callout-important}
 L'utilisation des `VIEW` avec duckDb s'inscrit dans une utilisation plus poussée de duckDB, en vue d'optimiser les ressources utilisées. Pour un utilisateur novice, le premier chargement suffit
 :::
 
 ::: {.callout-tip}
-# Import de plusiuers fichiers parquet
-Pour lire plusieurs fichiers Parquet d'un coup (par exemple un export découpé en plusieurs morceaux), on utilise un motif avec `*` :
+# Import de plusieurs fichiers parquet
+Pour lire plusieurs fichiers Parquet d'un coup (par exemple un export découpé en plusieurs morceaux), on utilise un motif avec `*`, que ce soit sur S3 ou dans un répertoire :
 
 ```r
-dbGetQuery(con, "
-  SELECT *
-  FROM read_parquet('s3://mon-bucket/mon-etude/*.parquet')
-")
+dbGetQuery(con, "SELECT * FROM read_parquet('s3://mon-bucket/mon-etude/*.parquet')")
+dbGetQuery(con, "SELECT * FROM read_parquet('X:/mon_repertoire/*.parquet')")
 ```
 :::
 
@@ -141,6 +223,7 @@ dbGetQuery(con, "
 
 - Extension PostgreSQL : [duckdb.org/docs/current/core_extensions/postgres/overview](https://duckdb.org/docs/current/core_extensions/postgres/overview.html)
 - Secrets PostgreSQL (`CREATE SECRET TYPE postgres`) : [duckdb.org/docs/current/core_extensions/postgres/secrets](https://duckdb.org/docs/current/core_extensions/postgres/secrets.html)
+- Instructions `ATTACH` / `DETACH` : [duckdb.org/docs/current/sql/statements/attach](https://duckdb.org/docs/current/sql/statements/attach.html)
 - Extension httpfs (accès S3) : [duckdb.org/docs/current/core_extensions/httpfs/overview](https://duckdb.org/docs/current/core_extensions/httpfs/overview.html)
 - Configuration S3 en détail : [duckdb.org/docs/current/core_extensions/httpfs/s3api](https://duckdb.org/docs/current/core_extensions/httpfs/s3api.html)
 - Gestion des secrets (`credential_chain`, etc.) : [duckdb.org/docs/current/configuration/secrets_manager](https://duckdb.org/docs/current/configuration/secrets_manager.html)

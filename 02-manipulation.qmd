@@ -23,7 +23,7 @@ install.packages(c("dplyr", "dbplyr"))
 library(dplyr)
 ```
 
-On utilise `tbl()` pour créer un lien **paresseux** (*lazy*) vers la table : rien n'est encore chargé en mémoire.
+On utilise `tbl()` pour créer un lien **paresseux** (*lazy*) vers la table : rien n'est encore chargé en mémoire. C'est la dernière étape `collect()` qui s'occupera de le faire.
 
 ```r
 ma_table_tbl <- tbl(con, "ma_table")
