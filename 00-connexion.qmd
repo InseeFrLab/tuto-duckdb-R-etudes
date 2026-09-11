@@ -44,9 +44,17 @@ Un seul objet `con` suffit pour tout le script : c'est lui qu'on réutilise dans
 Il est aussi possible de configurer le comportement de la base (mémoire maximale utilisée, nombre de threads, etc.) avec des instructions `SET`
 
 ```r
-DBI::dbExecute(con, "SET memory_limit = '10GB'")
+DBI::dbExecute(con, "SET preserve_insertion_order = false;")
 ```
+
+L'instruction de cet exemple doit être ajoutée après chaque création de base duckdb. Elle permet de réduire l'utilisation de la RAM lors de calculs, ce qui réduit le risque de saturation de la mémoire.
+
 Voir la [documentation de configuration](https://duckdb.org/docs/current/configuration/overview.html) pour la liste complète des options.
+
+:::{.callout-warning}
+# Modifier plusieurs paramètres lors de la configuration de la base
+Attention, la fonction `DBI::dbExecute()` n'accepte qu'une seule instruction à la fois. Pour modifier plusieurs paramètres, il faut passer autant de requêtes que d'éléments à modifier.
+:::
 
 ## Fermer la connexion
 

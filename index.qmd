@@ -8,13 +8,16 @@ title: "Prise en main de DuckDB avec R pour la réalisation d'études ou de rép
 
 Ses avantages pour une étude ou une réponse à la demande :
 
-- **Rapide** : conçu pour analyser de gros volumes de données (bien plus rapide que `data.frame` ou même `dplyr` seul sur de gros fichiers).
+- **Rapide** : conçu pour analyser de gros volumes de données (bien plus rapide que `data.frame` ou même `dplyr` seul sur de gros fichiers ou que `RPostGres` pour récupérer des données depuis une base de données PostgreSQL). Un exemple de comparaison entre duckDB et le package `RPostGres` est disponible [ici](https://individus-et-logements.gitlab-pages.insee.fr/resil/univers-de-reference/presentations/tutoriel-pgsql-via-duckdb/)
 - **Économe en mémoire** : peut traiter des fichiers plus gros que la RAM disponible.
 - **Polyvalent** : lit et écrit nativement des fichiers **Parquet**, se connecte à des bases **PostgreSQL**, et sait lire/écrire sur du stockage **S3** (l'espace de stockage disponible sur les instances d'Onyxia, comme LS3 ou le SSPCloud).
 - **Simple** : une seule ligne pour se connecter, pas de serveur à administrer.
 
 ::: {.callout-note}
+# Liens vers la documentation
 Documentation officielle : [duckdb.org/docs](https://duckdb.org/docs/current/) (client R) : [r.duckdb.org](https://r.duckdb.org/)
+
+Support de formation Insee **R données volumineuses** : [Formation R données volumineuses](https://sortie-sas.pages.lab.sspcloud.fr/formations/r-donnees-volumineuses/support-animation/) 
 :::
 
 ## Le plan de la formation

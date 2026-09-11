@@ -2,6 +2,12 @@
 title: "Étape III : Exporter les données"
 ---
 
+:::{.callout-important}
+# Export parquet vs fichier .duckdb
+**TOUJOURS** privilégier un export dans un fichier `parquet` plutôt qu'une sauvegarde dans une base .duckdb.
+`Parquet` est un format ouvert, stable et lisible par tous les écosystèmes (`Python`, `R`, `Spark`, `DuckDB`...), alors qu'un `.duckdb` est un format interne lié à la version du moteur, sans garantie de compatibilité dans la durée. Il apporte en plus compression, partitionnement et lecture sélective des colonnes.
+:::
+
 ## Le principe
 
 Une fois le résultat de l'étude prêt, on l'enregistre dans un fichier. DuckDB fait cela avec une seule instruction SQL : `COPY ... TO ...`. Pas besoin d'un package supplémentaire (pas de `arrow`, pas de `write.csv`) : DuckDB écrit lui-même le fichier, au format demandé.
