@@ -49,6 +49,37 @@ ma_table_tbl |>
 ```
 :::
 
+## Travailler à partir d'un résultat intermédiaire avec `compute()`
+
+Dans certains cas, la sauvegarde de traitements, coûteux à calculer, dans une table intermédiaire peut être bénéfique pour l'analyse : cette table peut servir de point de départ à **plusieurs analyses différentes**.
+
+L'instruction `dplyr::compute()` exécute la requête et **sauvegarde le résultat comme une table intermédiaire dans la base DuckDB** (une table temporaire), sans le sortir de la base. Il renvoie un nouveau lien paresseux (`tbl_lazy`) vers cette table, pas un `data.frame`.
+
+Sans `compute()`, chaque nouvelle opération relance tout le calcul depuis le début; avec `compute()`, le calcul lourd n'est fait qu'une fois, et chaque étape suivante repart directement de la table mise en cache dans DuckDB, y compris via plusieurs `collect()` successifs, sur des sous-parties différentes du résultat.
+
+Quant à l'instruction `dplyr::collect()`, elle **rapatrie** le résultat dans R, sous forme de `data.frame`. C'est la seule des deux commandes qui charge des données en mémoire R.
+
+![`compute()` sauvegarde le résultat dans une table DuckDB ; `collect()` peut ensuite être appelé plusieurs fois dessus, sans jamais relancer le traitement lourd](img/compute-img.png)
+
+```r
+# Le traitement lourd n'est exécuté qu'une seule fois, ici, avec compute()
+etape_intermediaire <- ma_table_tbl |>
+  dplyr::filter(annee == 2024) |>
+  dplyr::group_by(region) |>
+  dplyr::summarise(valeur_moyenne = mean(valeur, na.rm = TRUE)) |>
+  dplyr::compute()
+
+# On repart ensuite plusieurs fois de cette table mise en cache,
+# sans jamais refaire le calcul lourd
+resultat_1 <- etape_intermediaire |> dplyr::filter(valeur_moyenne > 15) |> dplyr::collect()
+resultat_2 <- etape_intermediaire |> dplyr::arrange(dplyr::desc(valeur_moyenne)) |> dplyr::collect()
+resultat_3 <- etape_intermediaire |> dplyr::collect()
+```
+
+::: {.callout-tip}
+Pour un usage novice, un seul `dplyr::collect()` à la toute fin de la chaîne suffit largement. `dplyr::compute()` devient utile dès qu'un même calcul lourd est réutilisé plusieurs fois dans un script, pour plusieurs `collect()`, ou plusieurs sous-analyses différentes.
+:::
+
 ## Avec le SQL natif
 
 On peut écrire la même requête directement en SQL, avec `DBI::dbGetQuery()` :
@@ -78,4 +109,5 @@ Il n'y a pas de mauvais choix : vous pouvez même mélanger les deux dans un mê
 ## Sources
 
 - Intégration dbplyr dans le client R : [duckdb.org/docs/current/clients/r](https://duckdb.org/docs/current/clients/r.html#dbplyr)
+- Documentation de `compute()` (dbplyr) : [dbplyr.tidyverse.org/reference/compute.tbl_sql](https://dbplyr.tidyverse.org/reference/compute.tbl_sql.html)
 - Introduction au SQL DuckDB : [duckdb.org/docs/current/sql/introduction](https://duckdb.org/docs/current/sql/introduction.html)

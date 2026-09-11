@@ -69,7 +69,7 @@ DBI::dbExecute(con, "
 # On la relit pour la suite du pipeline (vue paresseuse, rien n'est chargé en mémoire)
 DBI::dbExecute(con, "
   CREATE OR REPLACE VIEW ma_table AS
-  SELECT * FROM read_parquet('s3://mon-bucket/mon-etude/brut/ma_table.parquet')
+  SELECT * FROM 's3://mon-bucket/mon-etude/brut/ma_table.parquet'
 ")
 
 # PostgreSQL n'est plus nécessaire pour la suite : on ferme la connexion
@@ -83,8 +83,9 @@ resultat <- dplyr::tbl(con, "ma_table") |>
   dplyr::summarise(valeur_moyenne = mean(valeur, na.rm = TRUE)) |>
   dplyr::collect()
 
-# On enregistre le résultat comme table DuckDB pour pouvoir l'exporter en SQL
-DBI::dbWriteTable(con, "resultat_final", resultat, overwrite = TRUE)
+# On enregistre le résultat comme vue DuckDB pour pouvoir l'exporter en SQL
+# (duckdb_register ne copie pas les données, contrairement à dbWriteTable)
+duckdb::duckdb_register(con, "resultat_final", resultat)
 
 # --- Étape III : export du livrable -------------------------------------
 
@@ -93,6 +94,8 @@ DBI::dbExecute(con, "
   TO 's3://mon-bucket/mon-etude/livrable/resultat_regions_2024.parquet'
   (FORMAT parquet)
 ")
+
+duckdb::duckdb_unregister(con, "resultat_final")
 
 # --- Fermeture -----------------------------------------------------------
 
@@ -104,7 +107,7 @@ Ce script mélange volontairement `dplyr` (étape II) et SQL natif (étapes I et
 :::
 
 ::: {.callout-tip}
-Si toute la manipulation avait été écrite en SQL natif, l'étape II et l'écriture intermédiaire via `DBI::dbWriteTable()` auraient pu être remplacées par une seule requête `COPY (SELECT ...) TO ...`, comme montré à l'[étape III](03-export.qmd).
+Si toute la manipulation avait été écrite en SQL natif, l'étape II et l'enregistrement intermédiaire via `duckdb::duckdb_register()` auraient pu être remplacés par une seule requête `COPY (SELECT ...) TO ...`, comme montré à l'[étape III](03-export.qmd).
 :::
 
 ## Pour aller plus loin

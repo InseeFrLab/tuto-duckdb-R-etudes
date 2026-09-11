@@ -71,6 +71,11 @@ On préfère écrire les chemins avec des slashs (`/`), même sous Windows (`X:/
 
 :::
 
+:::{.callout-important}
+## Utilisation de `glue`
+Le package `glue` sert à insérer directement des variables R dans une chaîne de caractères, entre accolades `{}`, par exemple `glue::glue("ENDPOINT '{Sys.getenv(\"AWS_S3_ENDPOINT\")}'")`. C'est plus lisible qu'un `sprintf()`, où il faut faire correspondre chaque `%s` à l'ordre des arguments ou qu'un `paste()`.
+
+:::
 
 
 ## A. De PostgreSQL vers un fichier Parquet
@@ -189,7 +194,11 @@ DBI::dbExecute(con, "DETACH pg")
 
 ## B. Importer un Parquet déjà stocké {#partie-b}
 
-Si le fichier existe déjà (déposé par vous ou par quelqu'un d'autre), il suffit de le lire avec `read_parquet()`, à condition que l'accès au stockage ait été configuré comme ci-dessus (uniquement nécessaire pour S3).
+Si le fichier existe déjà (déposé par vous ou par quelqu'un d'autre), il suffit de le lire, à condition que l'accès au stockage ait été configuré comme ci-dessus (uniquement nécessaire pour S3).
+
+::: {.callout-tip}
+Tant que le nom du fichier se termine par `.parquet`, DuckDB détecte automatiquement le format : pas besoin d'appeler `read_parquet()`, un simple chemin entre guillemets dans le `FROM` suffit (vérifié ci-dessous). Ce qui compte, c'est que les fichiers puissent être capturés par un **motif** (`*`, ou `**` pour inclure les sous-répertoires) — peu importe qu'ils soient dans le même dossier ou non. `read_parquet()` reste nécessaire seulement pour une extension différente (ex. `.parq`), ou pour cibler une **liste précise** de fichiers qui ne suivent aucun motif commun, comme `read_parquet(['a.parquet', 'dossier2/b.parquet'])`.
+:::
 
 ::: {.panel-tabset}
 
@@ -198,7 +207,7 @@ Si le fichier existe déjà (déposé par vous ou par quelqu'un d'autre), il suf
 ```r
 donnees <- DBI::dbGetQuery(con, "
   SELECT *
-  FROM read_parquet('s3://mon-bucket/mon-etude/ma_table.parquet')
+  FROM 's3://mon-bucket/mon-etude/ma_table.parquet'
 ")
 ```
 
@@ -207,7 +216,7 @@ On peut aussi le transformer en **vue** DuckDB, pratique pour le réutiliser plu
 ```r
 DBI::dbExecute(con, "
   CREATE OR REPLACE VIEW ma_table AS
-  SELECT * FROM read_parquet('s3://mon-bucket/mon-etude/ma_table.parquet')
+  SELECT * FROM 's3://mon-bucket/mon-etude/ma_table.parquet'
 ")
 ```
 
@@ -216,7 +225,7 @@ DBI::dbExecute(con, "
 ```r
 donnees <- DBI::dbGetQuery(con, "
   SELECT *
-  FROM read_parquet('X:/mon_repertoire/ma_table.parquet')
+  FROM 'X:/mon_repertoire/ma_table.parquet'
 ")
 ```
 
@@ -225,7 +234,7 @@ On peut aussi le transformer en **vue** DuckDB, pratique pour le réutiliser plu
 ```r
 DBI::dbExecute(con, "
   CREATE OR REPLACE VIEW ma_table AS
-  SELECT * FROM read_parquet('X:/mon_repertoire/ma_table.parquet')
+  SELECT * FROM 'X:/mon_repertoire/ma_table.parquet'
 ")
 ```
 
@@ -237,11 +246,17 @@ L'utilisation des `VIEW` avec duckDb s'inscrit dans une utilisation plus poussé
 
 ::: {.callout-tip}
 # Import de plusieurs fichiers parquet
-Pour lire plusieurs fichiers Parquet d'un coup (par exemple un export découpé en plusieurs morceaux), on utilise un motif avec `*`, que ce soit sur S3 ou dans un répertoire :
+Pour lire plusieurs fichiers Parquet d'un coup (par exemple un export découpé en plusieurs morceaux), on utilise un motif avec `*`, que ce soit sur S3 ou dans un répertoire, toujours sans `read_parquet()` :
 
 ```r
-DBI::dbGetQuery(con, "SELECT * FROM read_parquet('s3://mon-bucket/mon-etude/*.parquet')")
-DBI::dbGetQuery(con, "SELECT * FROM read_parquet('X:/mon_repertoire/*.parquet')")
+DBI::dbGetQuery(con, "SELECT * FROM 's3://mon-bucket/mon-etude/*.parquet'")
+DBI::dbGetQuery(con, "SELECT * FROM 'X:/mon_repertoire/*.parquet'")
+```
+
+Avec `**` à la place de `*`, le motif devient récursif et capte aussi les fichiers dans les sous-répertoires :
+
+```r
+DBI::dbGetQuery(con, "SELECT * FROM 'X:/mon_repertoire/**/*.parquet'")
 ```
 :::
 

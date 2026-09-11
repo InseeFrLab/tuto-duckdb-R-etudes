@@ -2,13 +2,13 @@
 title: "Étape III : Exporter les données"
 ---
 
-## L'idée
+## Le principe
 
 Une fois le résultat de l'étude prêt, on l'enregistre dans un fichier. DuckDB fait cela avec une seule instruction SQL : `COPY ... TO ...`. Pas besoin d'un package supplémentaire (pas de `arrow`, pas de `write.csv`) : DuckDB écrit lui-même le fichier, au format demandé.
 
 On exécute cette commande depuis R avec `DBI::dbExecute()`.
 
-## Exporter une table entière
+## Exporter une table stocké dans la base duckDB
 
 ```r
 DBI::dbExecute(con, "
@@ -19,6 +19,26 @@ DBI::dbExecute(con, "
 ```
 
 Le format est déduit de l'extension du fichier (`.parquet`, `.csv`) mais peut aussi être précisé explicitement avec `FORMAT`, comme ci-dessus.
+
+## Exporter un data.frame R
+
+`COPY` ne fonctionne que sur une table ou une vue **DuckDB**, pas directement sur un `data.frame` R (par exemple un résultat de `dplyr::collect()`). Pour exporter un `data.frame` en SQL, on l'enregistre d'abord comme vue avec `duckdb::duckdb_register()` :
+
+```r
+duckdb::duckdb_register(con, "resultat_vue", resultat)
+
+DBI::dbExecute(con, "
+  COPY resultat_vue
+  TO 'resultat.parquet'
+  (FORMAT parquet)
+")
+
+duckdb::duckdb_unregister(con, "resultat_vue")
+```
+
+::: {.callout-tip}
+`duckdb_register()` ne copie pas les données : il crée une vue qui pointe directement vers le `data.frame` R. C'est plus léger que `DBI::dbWriteTable()`, qui dupliquerait les données dans DuckDB avant de pouvoir les exporter. On peut retirer la vue une fois l'export terminé avec `duckdb_unregister()`.
+:::
 
 ## Exporter le résultat d'une requête
 
@@ -83,6 +103,16 @@ DBI::dbExecute(con, "
 ")
 ```
 
+Concrètement, DuckDB crée un sous-dossier par valeur distincte de la colonne de partition, nommé `colonne=valeur`, contenant les lignes correspondantes :
+
+```
+export_par_region/
+├── region=A/data_0.parquet
+└── region=B/data_0.parquet
+```
+
+Ce découpage (format « Hive ») permet aussi, à la relecture, de ne charger que les partitions utiles si l'on filtre sur cette colonne — sans avoir à lire tout le dossier.
+
 Si le dossier de destination existe déjà et contient des fichiers, DuckDB refuse d'écrire par défaut (pour éviter d'écraser un export existant par erreur). Pour relancer l'export et remplacer les fichiers, on ajoute l'option `OVERWRITE_OR_IGNORE` :
 
 ```r
@@ -104,5 +134,7 @@ Pour réduire la taille des fichiers Parquet exportés, on peut préciser une co
 ## Sources
 
 - Instruction `COPY` : [duckdb.org/docs/current/sql/statements/copy](https://duckdb.org/docs/current/sql/statements/copy.html)
+- Export partitionné (Hive) : [duckdb.org/docs/current/data/partitioning/partitioned_writes](https://duckdb.org/docs/current/data/partitioning/partitioned_writes.html)
+- Client R (`duckdb_register()`, `duckdb_unregister()`) : [duckdb.org/docs/current/clients/r](https://duckdb.org/docs/current/clients/r.html)
 - Écriture de fichiers Parquet : [duckdb.org/docs/current/data/parquet/overview](https://duckdb.org/docs/current/data/parquet/overview.html)
 - Configuration S3 (pour l'export direct vers `s3://`) : [duckdb.org/docs/current/core_extensions/httpfs/s3api](https://duckdb.org/docs/current/core_extensions/httpfs/s3api.html)
