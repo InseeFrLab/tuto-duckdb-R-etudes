@@ -2,8 +2,6 @@
 title: "Étape II : Manipuler les données"
 ---
 
-## L'idée
-
 Une fois les données chargées ([étape I](01-chargement.qmd)), on peut les transformer de **deux façons** avec DuckDB :
 
 1. avec les verbes `dplyr` que vous utilisez déjà (`dplyr::filter()`, `dplyr::group_by()`, `dplyr::summarise()`, …) ;
