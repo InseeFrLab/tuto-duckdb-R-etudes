@@ -2,8 +2,6 @@
 title: "Étape 0 : Créer une connexion DuckDB"
 ---
 
-## L'idée
-
 Pour commencer, il faut ouvrir une **connexion** vers DuckDB. C'est un peu comme ouvrir une session de travail : tant qu'elle est ouverte, on peut y stocker des tables temporaires et lancer des requêtes.
 
 DuckDB s'utilise en R avec le package `duckdb`, qui suit l'interface standard `DBI` (la même interface que pour se connecter à PostgreSQL ou MySQL en R). Si vous avez déjà utilisé `DBI::dbConnect()` avec une autre base, la logique est identique.
