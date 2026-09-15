@@ -2,8 +2,6 @@
 title: "Étape IV : Exemple de pipeline complet"
 ---
 
-## L'idée
-
 On assemble les quatre étapes précédentes dans un scénario réaliste de réponse à la demande :
 
 > *« On nous demande la valeur moyenne d'un indicateur par région, pour l'année 2024. La donnée source vit dans PostgreSQL. Le livrable doit être un fichier Parquet déposé sur S3. »*
