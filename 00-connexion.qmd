@@ -9,7 +9,7 @@ DuckDB s'utilise en R avec le package `duckdb`, qui suit l'interface standard `D
 ## Installer et charger le package
 
 ```r
-install.packages("duckdb")
+install.packages("duckdb") # le package DBI s'installe en même temps que duckdb
 
 library(DBI)
 library(duckdb)
@@ -21,7 +21,7 @@ Deux cas de figure :
 
 ### Connexion en mémoire (le plus courant pour une étude)
 
-Les données ne sont pas conservées sur disque : tout disparaît à la fermeture de la session R. C'est suffisant pour la majorité des études ponctuelles.
+Les données ne sont pas conservées sur disque : tout disparaît à la fermeture de la session R. C'est suffisant pour la majorité des études ou réponses à la demande.
 
 ```r
 con <- DBI::dbConnect(duckdb::duckdb())
@@ -37,6 +37,11 @@ con <- DBI::dbConnect(duckdb::duckdb(), dbdir = "mon_etude.duckdb")
 
 ::: {.callout-tip}
 Un seul objet `con` suffit pour tout le script : c'est lui qu'on réutilise dans toutes les étapes suivantes (chargement, manipulation, export).
+:::
+
+::: {.callout-warning}
+# L'utilisation des fichiers `.duckdb`
+Les fichiers `.duckdb` ne doivent pas être pérennisés, ni utilisés dans des pipelines de production de données. Le format Parquet doit être privilégié.
 :::
 
 Il est aussi possible de configurer le comportement de la base (mémoire maximale utilisée, nombre de threads, etc.) avec des instructions `SET`

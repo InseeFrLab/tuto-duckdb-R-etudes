@@ -25,7 +25,7 @@ Toutes les commandes DuckDB peuvent être lancées depuis R via `DBI::dbExecute(
 
 Cette configuration sert pour **les deux usages** ci-dessous : écrire un Parquet sur S3, et en importer un.
 
-DuckDB utilise l'extension `httpfs` pour parler à S3. On commence par l'installer :
+DuckDB s'appuie sur l'extension `httpfs` pour accéder à des fichiers stockés sur S3. On commence par l'installer :
 
 ```r
 DBI::dbExecute(con, "INSTALL httpfs; LOAD httpfs;")
@@ -256,8 +256,18 @@ DBI::dbGetQuery(con, "SELECT * FROM 'X:/mon_repertoire/*.parquet'")
 Avec `**` à la place de `*`, le motif devient récursif et capte aussi les fichiers dans les sous-répertoires :
 
 ```r
-DBI::dbGetQuery(con, "SELECT * FROM 'X:/mon_repertoire/**/*.parquet'")
+DBI::dbGetQuery(con, "SELECT * FROM 'X:/mon_repertoire/**/*.parquet'", hive_partitioning = true)
 ```
+
+::: {.callout-tip}
+# Partitionnement des fichiers Parquet
+Les variables de partitionnement ne figurent pas dans les fichiers Parquet : 
+elles sont encodées dans les chemins, sous la forme `variable=valeur`. L'option 
+`hive_partitioning = true` demande à DuckDB de les interpréter, ce qui les 
+restitue sous forme de colonnes et lui évite d'ouvrir les fichiers exclus par 
+les filtres de la requête.
+:::
+
 :::
 
 ## Sources

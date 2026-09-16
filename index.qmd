@@ -1,6 +1,8 @@
 ---
-title: "Prise en main de DuckDB avec R pour la réalisation d'études ou de réponses à la demande"
+title: "Manipulation de données volumineuses à l'aide de DuckDB avec R pour la réalisation d'études ou de réponses à la demande"
 ---
+
+*Ce tutoriel est à destination des utilisateurs des plateformes de l'Insee (AUS, LS3, SSPCloud). Toutefois, les utilisateurs hors Insee peuvent adapter les différents codes produits à l'infrastructure de leur organisation (logiciels utilisé sur un poste en local, Nubonyxia...)*
 
 ## Pourquoi DuckDB ?
 
@@ -20,18 +22,18 @@ Documentation officielle : [duckdb.org/docs](https://duckdb.org/docs/current/) (
 Support de formation Insee **R données volumineuses** : [Formation R données volumineuses](https://sortie-sas.pages.lab.sspcloud.fr/formations/r-donnees-volumineuses/support-animation/) 
 :::
 
-## Le plan de la formation
+## Le plan du tutoriel
 
-Cette formation suit le déroulé type d'une étude : se connecter, charger les données, les manipuler, puis exporter le résultat.
+Ce tutoriel suit le déroulé type d'une étude : se connecter, charger les données, les manipuler, puis exporter le résultat.
 
 ::: {.step-card}
 ### Étape 0 : [Créer une connexion DuckDB](00-connexion.qmd)
-On ouvre une session DuckDB depuis R. C'est le point de départ obligatoire de tout script.
+On ouvre une session `DuckDB` depuis `R`. C'est le point de départ obligatoire de tout script.
 :::
 
 ::: {.step-card}
 ### Étape I : [Charger les données](01-chargement.qmd)
-On part d'une base PostgreSQL, on extrait les données vers un fichier Parquet, puis on apprend à importer un Parquet stocké sur un espace S3.
+On part d'une base `PostgreSQL`, on extrait les données vers un fichier Parquet, puis on apprend à importer un Parquet stocké sur un espace S3.
 :::
 
 ::: {.step-card}
